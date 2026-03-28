@@ -35,18 +35,36 @@ pub mod utils {
 }
 
 use crate::config::AppConfig;
+use crate::filters::input::prompt_injection::PromptInjectionFilter;
 use crate::pipeline::executor::PipelineExecutor;
+use crate::policy::engine::PolicyEngine;
 use crate::proxy::client::ProxyClient;
 use crate::proxy::handler::handle_chat;
 
 #[tokio::main]
 async fn main() {
     utils::logger::init();
-    info!("Starting Claw Defence Gateway");
+    info!("Starting Claw Defence Gateway - Phase 2");
 
     let config = AppConfig::load();
     let proxy_client = Arc::new(ProxyClient::new(&config));
-    let pipeline_executor = Arc::new(PipelineExecutor::new(proxy_client));
+    
+    // Initialize Policy Engine
+    let policy_engine = Arc::new(
+        PolicyEngine::new("config/policy.yaml")
+            .expect("Failed to initialize Policy Engine")
+    );
+
+    // Initialize Input Filters
+    let prompt_injection_filter = Arc::new(PromptInjectionFilter::new());
+    let input_filters: Vec<Arc<dyn filters::r#trait::Filter>> = vec![prompt_injection_filter];
+
+    // Build Pipeline
+    let pipeline_executor = Arc::new(PipelineExecutor::new(
+        proxy_client, 
+        input_filters, 
+        policy_engine
+    ));
 
     let app = Router::new()
         .route("/v1/chat", post(handle_chat))

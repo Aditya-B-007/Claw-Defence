@@ -1,2 +1,6 @@
 version: "1.0"
-policies: []
+max_tokens: 2000
+blocked_patterns:
+  - "ignore previous instructions"
+  - "reveal system prompt"
+  - "you are no longer an ai"

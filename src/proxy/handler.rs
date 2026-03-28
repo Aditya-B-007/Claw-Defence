@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tracing::error;
 
 use crate::models::request::ChatRequest;
-use crate::pipeline::executor::PipelineExecutor;
+use crate::pipeline::executor::{PipelineError, PipelineExecutor};
 
 pub async fn handle_chat(
     State(executor): State<Arc<PipelineExecutor>>,
@@ -18,7 +18,15 @@ pub async fn handle_chat(
         Ok(response) => Ok(Json(response).into_response()),
         Err(e) => {
             error!("Pipeline execution failed: {}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            
+            match e {
+                PipelineError::FilterFailed(_) | PipelineError::PolicyFailed(_) => {
+                    Err(StatusCode::BAD_REQUEST)
+                }
+                PipelineError::ProxyFailed(_) => {
+                    Err(StatusCode::BAD_GATEWAY)
+                }
+            }
         }
     }
 }
